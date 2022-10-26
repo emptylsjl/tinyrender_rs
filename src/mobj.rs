@@ -29,7 +29,7 @@ impl Module {
             match p.next().unwrap_or(" ") {
                 "#" => {println!("{}", p.collect::<String>())}
                 "v" => {v.push(Vector3::new(pnext(p.next()), pnext(p.next()), pnext(p.next())));}
-                "f" => {f.push(p.map(|x| x.split("/").next().unwrap().parse::<usize>().unwrap()-1).collect());}
+                "f" => {f.push(p.flat_map(|x| x.split("/").map(|y| y.parse::<usize>().unwrap())).collect());}
                 // "f" => {f.push((p.next().unwrap().split("/").next().unwrap().parse::<usize>().unwrap()-1,p.next().unwrap().split("/").next().unwrap().parse::<usize>().unwrap()-1,p.next().unwrap().split("/").next().unwrap().parse::<usize>().unwrap()-1)); }
                 "vt" => {vt.push(Vector3::new(pnext(p.next()), pnext(p.next()), pnext(p.next())));}
                 "vn" => {vn.push(Vector3::new(pnext(p.next()), pnext(p.next()), pnext(p.next())));}

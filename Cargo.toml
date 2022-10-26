@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+once_cell = "1.15.0"
 image = {version="0.24.4", features=["tga", "default"]}
 rand="0.8.5"
 ndarray = "0.15.6"

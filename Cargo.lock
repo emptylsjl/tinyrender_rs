@@ -637,6 +637,7 @@ dependencies = [
  "image",
  "nalgebra",
  "ndarray",
+ "once_cell",
  "rand",
 ]
 
