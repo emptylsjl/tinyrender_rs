@@ -19,21 +19,31 @@ use std::iter::zip;
 use rand::Rng;
 use image::{GenericImage, GenericImageView, ImageBuffer, Pixel, Primitive, Rgb, Rgba, RgbaImage};
 use image::codecs::hdr::Rgbe8Pixel;
-use nalgebra::{Isometry3, Matrix, Matrix1x2, Matrix2, Matrix2x1, Point3, Rotation, Rotation3, Scale3, Transform3, Unit, Vector2, Vector3};
+use nalgebra::{Isometry3, Matrix, Matrix1x2, Matrix2, Matrix2x1, Matrix4, Matrix4xX, Point3, Rotation, Rotation3, Scale3, Transform3, Unit, Vector2, Vector3, Vector4};
 use once_cell::sync::Lazy;
 
 fn p3d(v: &V4d) -> V3d {
-    V3d::new((v[0]+1.) * (WID-1) as f64/2.,
-             (v[1]+1.) * (HIG-1) as f64/2.,
-             (v[2]+1.) * (DEP-1) as f64/2.
-    )
+    V3t {
+        x: (v.x+1.) * (WID-1) as f64/2.,
+        y: (v.y+1.) * (HIG-1) as f64/2.,
+        z: (v.z+1.) * (DEP-1) as f64/2.
+    }
 }
 
+// fn p3i(v: &V4d) -> V3i {
+//     V3i {
+//         x: ((v[0] + 1.) * (WID - 1) as f64 / 2.) as i32,
+//         y: ((v[1] + 1.) * (HIG - 1) as f64 / 2.) as i32,
+//         z: ((v[2] + 1.) * (DEP - 1) as f64 / 2.) as i32
+//     }
+// }
+
 fn p3i(v: &V4d) -> V3i {
-    Vector3::new(((v[0]+1.) * (WID-1) as f64/2.) as i32,
-                 ((v[1]+1.) * (HIG-1) as f64/2.) as i32,
-                 ((v[2]+1.) * (DEP-1) as f64/2.) as i32
-    )
+    V3t {
+        x: ((v.x + 1.) * (WID - 1) as f64 / 2.) as i32,
+        y: ((v.y + 1.) * (HIG - 1) as f64 / 2.) as i32,
+        z: ((v.z + 1.) * (DEP - 1) as f64 / 2.) as i32
+    }
 }
 
 fn draw_line<T: Pixel, U: GenericImage + GenericImageView<Pixel = T>>(p0: V3i, p1: V3i, img: &mut U, color: T) {
@@ -47,7 +57,7 @@ fn draw_line<T: Pixel, U: GenericImage + GenericImageView<Pixel = T>>(p0: V3i, p
     }
 }
 
-fn triangle(v012: [V3i; 3], vt012: [V3i; 3], zbuf: &mut [u8], img: &mut RgbaImage, ttv: &RgbaImage, rgba: Rgba<u8>) {
+fn triangle(v012: [V3t<i32>; 3], vt012: [V3t<i32>; 3], zbuf: &mut [u8], img: &mut RgbaImage, ttv: &RgbaImage, rgba: Rgba<u8>) {
     let [mut v0, mut v1, mut v2] = v012;
     let [mut vt0, mut vt1, mut vt2] = vt012;
 
@@ -111,13 +121,15 @@ impl PixOps for RgbaImage {
 
 fn main() -> Result<(), Box<dyn Error>>{
 
-    let x = Mx4d::new_rotation(V3d::new(PI/4.,0.,0.));
-    let y = Mx4d::new_rotation(V3d::new(0.,PI/4.,0.));
-    let z = Mx4d::new_rotation(V3d::new(0.,0.,PI/4.));
-    let s = Mx4d::new_nonuniform_scaling(&V3d::new(0.6, 0.6 ,0.6));
-    let m = Isometry3::translation(1.6, 0., 0.).to_homogeneous();
-    let t = y * s * m;
+    let x = Mx4d::rot(XAXIS, PI/4.);
+    let y = Mx4d::rot(YAXIS, PI/4.);
+    let z = Mx4d::rot(ZAXIS, PI/4.);
+    let s = Mx4d::scale(0.6, 0.6 ,0.6);
+    let m = Mx4d::trans(0.8, 0.8, 0.);
+    // let t = m * x * y * s;
+    let t = m;
     // let t = Mx4d::identity();
+    // let t = Mx4t::<f64>::default();
 
     let md = Module::new(CWD.clone() + "/res/obj/african_head.obj").unwrap();
     let mut ttv = image::open(CWD.clone() + "/res/img/african_head_diffuse.png").unwrap().to_rgba8();
@@ -128,20 +140,31 @@ fn main() -> Result<(), Box<dyn Error>>{
     ttv.revs();
 
 
-    let light_dir = V3d::new(0.,0.,-1.);
+
+    let light_dir = V3d {x: 0., y: 0., z:-1.};
     let transV = md.v.iter().map(|v| t * v).collect::<Vec<V4d>>();
+
+    for (i, j) in zip(&transV, &md.v) {
+        let (ix, iy, iz, iw) = (i.x, i.y, i.z, i.w);
+        let (jx, jy, jz, jw) = (j.x, j.y, j.z, j.w);
+            println!("{ix:.4}:{iy:.4}:{iz:.4}:{iw} - - {jx:.4}:{jy:.4}:{jz:.4}:{jw}");
+    }
+
+    let st =
+
     for f in md.f {
         // let (v0, v1, v2) = (md.v[f[0]-1], md.v[f[3]-1], md.v[f[6]-1]);
-        let (v0, v1, v2) = (transV[f[0]-1], transV[f[3]-1], transV[f[6]-1]);
-        let vt012 = [&md.vt[f[1]-1], &md.vt[f[4]-1], &md.vt[f[7]-1]].map(|x| V3t::new((x.x*ttvx) as i32, (x.y*ttvy) as i32, 0));
-        let intensity = light_dir.dot(&as_v3d(v0 - v2).cross(&as_v3d(v1 - v2)).normalize().scale(-1.));
+        let (v0, v1, v2) = (&transV[f[0]-1], &transV[f[3]-1], &transV[f[6]-1]);
+        let vt012 = [&md.vt[f[1]-1], &md.vt[f[4]-1], &md.vt[f[7]-1]].map(|x| V3i{x: (x.x*ttvx) as i32, y: (x.y*ttvy) as i32, z: 0});
+        // let intensity = light_dir.dot(&as_v3d(v0 - v2).cross(&as_v3d(v1 - v2)).normalize().scale(-1.));
         // let intensity = light_dir.dot(&V3d::new(1.,1.,1.,));
 
-        let l = (intensity * 255f64) as u8;
-        if intensity > 0f64 {
+        // let l = (intensity * 255f64) as u8;
+        let l = 23u8;
+        // if intensity > 0f64 {
             // triangle([p3i(&(t *v0)), p3i(&(t *v1)), p3i(&(t *v2))], vt012, &mut zbuf, &mut img, &ttv, Rgba([l,l,l,255]));
             triangle([p3i(&v0), p3i(&v1), p3i(&v2)], vt012, &mut zbuf, &mut img, &ttv, Rgba([l,l,l,255]));
-        }
+        // }
         // else {
         //     triangle([p3i(&v0), p3i(&v1), p3i(&v2)], vt012, &mut zbuf, &mut img2, &ttv, Rgba([l,l,l,255]));
         // }

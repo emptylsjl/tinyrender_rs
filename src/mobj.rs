@@ -31,11 +31,11 @@ impl Module {
             let mut p = p.split_whitespace();
             match p.next().unwrap_or(" ") {
                 "#" => {println!("{}", p.collect::<String>())}
-                "v" => {v.push(V4d::new(pnext(p.next()), pnext(p.next()), pnext(p.next()), 1.));}
+                "v" => {v.push(V4d{x:pnext(p.next()), y:pnext(p.next()), z:pnext(p.next()), w:1.});}
                 "f" => {f.push(p.flat_map(|x| x.split("/").map(|y| y.parse::<usize>().unwrap())).collect());}
                 // "f" => {f.push((p.next().unwrap().split("/").next().unwrap().parse::<usize>().unwrap()-1,p.next().unwrap().split("/").next().unwrap().parse::<usize>().unwrap()-1,p.next().unwrap().split("/").next().unwrap().parse::<usize>().unwrap()-1)); }
-                "vt" => {vt.push(V4d::new(pnext(p.next()), pnext(p.next()), pnext(p.next()), 1.));}
-                "vn" => {vn.push(V4d::new(pnext(p.next()), pnext(p.next()), pnext(p.next()), 1.));}
+                "vt" => {vt.push(V4d{x:pnext(p.next()), y:pnext(p.next()), z:pnext(p.next()), w:1.});}
+                "vn" => {vn.push(V4d{x:pnext(p.next()), y:pnext(p.next()), z:pnext(p.next()), w:1.});}
                 _ => {}
             };
         }
