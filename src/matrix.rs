@@ -1,7 +1,10 @@
 
 use std::default::Default;
+use std::iter::Product;
 use std::ops::{Add, Div, Mul, Sub};
 use crate::define::*;
+
+use num_traits::{real::Real, Pow};
 
 #[derive(Debug, Default, Copy, Clone)]
 pub struct V4t<T> {
@@ -36,9 +39,9 @@ pub type V4i = V4t<i32>;
 
 pub type Mx4d = Mx4t<f64>;
 
-trait Num: Add + Add<Output=Self> + Sub + Sub<Output=Self> + Mul + Mul<Output=Self> + Div + Div<Output=Self> + Copy {}
+// trait Num: Add + Add<Output=Self> + Sub + Sub<Output=Self> + Mul + Mul<Output=Self> + Div + Div<Output=Self> + Copy {}
 
-impl<T: Num> Add<V3t<T>> for V3t<T> {
+impl<T: Real + Copy> Add<V3t<T>> for V3t<T> {
     type Output = V3t<T>;
 
     fn add(self, rhs: V3t<T>) -> Self::Output {
@@ -46,7 +49,7 @@ impl<T: Num> Add<V3t<T>> for V3t<T> {
     }
 }
 
-impl<T: Num> Sub<V3t<T>> for V3t<T> {
+impl<T: Real + Copy> Sub<V3t<T>> for V3t<T> {
     type Output = V3t<T>;
 
     fn sub(self, rhs: V3t<T>) -> Self::Output {
@@ -54,40 +57,86 @@ impl<T: Num> Sub<V3t<T>> for V3t<T> {
     }
 }
 
-impl<T: Num> V3t<T> {
-    pub fn cross(self, rhs: V3t<T>) -> V3t<T> {
+impl<T: Real + Copy> V3t<T> {
+
+    pub fn new(x: T, y: T, z: T) -> V3t<T> {
+        V3t{ x, y, z }
+    }
+
+    pub fn cross(&self, rhs: V3t<T>) -> V3t<T> {
         V3t {
             x: self.y * rhs.z - self.z * rhs.y,
             y: self.z * rhs.x - self.x * rhs.z,
             z: self.x * rhs.y - self.y * rhs.x,
         }
     }
-    pub fn dot(self, rhs: V3t<T>) -> T {
+
+    pub fn dot(&self, rhs: V3t<T>) -> T {
         self.x * rhs.x + self.y * rhs.y + self.z + rhs.z
     }
-}
+    pub fn norm(&self) -> T {
+        let a = self.x*self.x + self.y*self.y + self.z*self.z;
+        a.sqrt()
+    }
 
-impl<T: Num> V4t<T> {
-    pub fn dot(self, rhs: V4t<T>) -> T {
-        self.x * rhs.x + self.y * rhs.y + self.z + rhs.z + self.w + rhs.w
+    pub fn normalize(&self) -> Self {
+        let n = self.norm();
+        V3t { x: self.x / n, y: self.y / n, z: self.z / n}
+    }
+
+    pub fn scale(&self, t: T) -> Self {
+        V3t { x: self.x * t, y: self.y * t, z: self.z * t}
+    }
+
+    pub fn nv3(&self) -> nalgebra::Vector3<T> {
+        nalgebra::Vector3::new(self.x, self.y, self.z)
     }
 }
 
-impl<T: Num> Add<V4t<T>> for V4t<T> {
+impl<T: Real + Copy> Add<V4t<T>> for V4t<T> {
     type Output = V4t<T>;
     fn add(self, rhs: V4t<T>) -> Self::Output {
         Self { x: self.x + rhs.x, y: self.y + rhs.y, z: self.z + rhs.z, w: self.w + rhs.w }
     }
 }
 
-impl<T: Num> Sub<V4t<T>> for V4t<T> {
+impl<T: Real + Copy> Sub<V4t<T>> for V4t<T> {
     type Output = V4t<T>;
     fn sub(self, rhs: V4t<T>) -> Self::Output {
         Self { x: self.x - rhs.x, y: self.y - rhs.y, z: self.z - rhs.z, w: self.w - rhs.w }
     }
 }
 
-impl<T: Num> Add<Mx4t<T>> for Mx4t<T> {
+impl<T: Real + Copy> V4t<T> {
+
+    pub fn new(x: T, y: T, z: T, w: T) -> Self {
+        Self { x, y, z, w }
+    }
+
+    pub fn dot(&self, rhs: V4t<T>) -> T {
+        self.x * rhs.x + self.y * rhs.y + self.z + rhs.z + self.w + rhs.w
+    }
+
+    pub fn v3t(&self) -> V3t<T> {
+        V3t { x: self.x, y: self.y, z: self.z}
+    }
+
+    pub fn norm(&self) -> T {
+        let a = self.x*self.x + self.y*self.y + self.z*self.z + self.w*self.w;
+        a.sqrt()
+    }
+
+    pub fn normalize(&self) -> Self {
+        let n = self.norm();
+        V4t { x: self.x / n, y: self.y / n, z: self.z / n, w: self.w / n}
+    }
+
+    pub fn scale(&self, t: T) -> Self {
+        V4t { x: self.x * t, y: self.y * t, z: self.z * t, w: self.w * t}
+    }
+}
+
+impl<T: Real + Copy> Add<Mx4t<T>> for Mx4t<T> {
     type Output = Mx4t<T>;
     fn add(self, rhs: Mx4t<T>) -> Self::Output {
         Self {
@@ -99,7 +148,7 @@ impl<T: Num> Add<Mx4t<T>> for Mx4t<T> {
     }
 }
 
-impl<T: Num> Sub<Mx4t<T>> for Mx4t<T> {
+impl<T: Real + Copy> Sub<Mx4t<T>> for Mx4t<T> {
     type Output = Mx4t<T>;
     fn sub(self, rhs: Mx4t<T>) -> Self::Output {
         Self {
@@ -111,10 +160,10 @@ impl<T: Num> Sub<Mx4t<T>> for Mx4t<T> {
     }
 }
 
-impl Mul<Mx4d> for Mx4d {
-    type Output = Mx4d;
-    fn mul(self, rhs: Mx4d) -> Self::Output {
-        Mx4d {
+impl<T: Real + Copy> Mul<Mx4t<T>> for Mx4t<T> {
+    type Output = Mx4t<T>;
+    fn mul(self, rhs: Mx4t<T>) -> Self::Output {
+        Mx4t {
             m11: self.m11*rhs.m11 + self.m12*rhs.m21 + self.m13*rhs.m31 + self.m14*rhs.m41,
             m12: self.m11*rhs.m12 + self.m12*rhs.m22 + self.m13*rhs.m32 + self.m14*rhs.m42,
             m13: self.m11*rhs.m13 + self.m12*rhs.m23 + self.m13*rhs.m33 + self.m14*rhs.m43,
@@ -138,10 +187,10 @@ impl Mul<Mx4d> for Mx4d {
     }
 }
 
-impl Mul<&V4d> for Mx4d {
-    type Output = V4d;
-    fn mul(self, rhs: &V4d) -> Self::Output {
-        V4d {
+impl<T: Real + Copy> Mul<&V4t<T>> for Mx4t<T> {
+    type Output = V4t<T>;
+    fn mul(self, rhs: &V4t<T>) -> Self::Output {
+        V4t {
             x: self.m11*rhs.x + self.m12*rhs.y + self.m13*rhs.z + self.m14*rhs.w,
             y: self.m21*rhs.x + self.m22*rhs.y + self.m23*rhs.z + self.m24*rhs.w,
             z: self.m31*rhs.x + self.m32*rhs.y + self.m33*rhs.z + self.m34*rhs.w,
@@ -150,7 +199,7 @@ impl Mul<&V4d> for Mx4d {
     }
 }
 
-impl<T: Num> Mx4t<T> {
+impl<T: Real + Copy> Mx4t<T> {
     pub fn new(m11: T, m12: T, m13: T, m14: T, m21: T, m22: T, m23: T, m24: T, m31: T, m32: T, m33: T, m34: T, m41: T, m42: T, m43: T, m44: T) -> Mx4t<T> {
         Mx4t {
             m11, m12, m13, m14,
@@ -159,15 +208,17 @@ impl<T: Num> Mx4t<T> {
             m41, m42, m43, m44,
         }
     }
-}
 
-impl Mx4d {
     pub fn identity() -> Mx4d {
         Mx4d { m11: 1., m22: 1., m33: 1., m44: 1., ..Default::default() }
     }
 
     pub fn scale(x: f64, y: f64, z: f64) -> Mx4d {
         Mx4d { m11: x, m22: y, m33: z, m44: 1., ..Default::default() }
+    }
+
+    pub fn proj(z: f64) -> Mx4d {
+        Mx4d { m11: 1., m22: -1., m33: 1., m44: 1., m43: -1./z, ..Default::default() }
     }
 
     pub fn rot(axis: i32, a: f64) -> Mx4d {

@@ -15,11 +15,11 @@ use std::error::Error;
 use std::{env, mem};
 use std::f64::consts::PI;
 use std::iter::zip;
+use std::time::SystemTime;
 
-use rand::Rng;
 use image::{GenericImage, GenericImageView, ImageBuffer, Pixel, Primitive, Rgb, Rgba, RgbaImage};
 use image::codecs::hdr::Rgbe8Pixel;
-use nalgebra::{Isometry3, Matrix, Matrix1x2, Matrix2, Matrix2x1, Matrix4, Matrix4xX, Point3, Rotation, Rotation3, Scale3, Transform3, Unit, Vector2, Vector3, Vector4};
+use nalgebra::Vector3;
 use once_cell::sync::Lazy;
 
 fn p3d(v: &V4d) -> V3d {
@@ -86,8 +86,8 @@ fn triangle(v012: [V3t<i32>; 3], vt012: [V3t<i32>; 3], zbuf: &mut [u8], img: &mu
         (0..y11l).for_each(|y|{
             let (vx, vy) = (x02 as u32, (y11+y*yneg).unsigned_abs());
             if vx < WID && vy< HIG && zbuf[(vx *HIG+ vy) as usize] < z {
-                img.put_pixel(vx, vy, *ttv.get_pixel(vtx02 as u32, (vty11+(y*vty11l*vtyneg/y11l)).unsigned_abs()));
-                // img.put_pixel(vx, vy, rgba);
+                // img.put_pixel(vx, vy, *ttv.get_pixel(vtx02 as u32, (vty11+(y*vty11l*vtyneg/y11l)).unsigned_abs()));
+                img.put_pixel(vx, vy, rgba);
                 zbuf[(vx *HIG+ vy) as usize] = z;
             }
             // else if vx < WID && vy< HIG {
@@ -97,7 +97,6 @@ fn triangle(v012: [V3t<i32>; 3], vt012: [V3t<i32>; 3], zbuf: &mut [u8], img: &mu
         })
     }
 }
-
 
 trait PixOps {
     fn revs(&mut self);
@@ -121,15 +120,6 @@ impl PixOps for RgbaImage {
 
 fn main() -> Result<(), Box<dyn Error>>{
 
-    let x = Mx4d::rot(XAXIS, PI/4.);
-    let y = Mx4d::rot(YAXIS, PI/4.);
-    let z = Mx4d::rot(ZAXIS, PI/4.);
-    let s = Mx4d::scale(0.6, 0.6 ,0.6);
-    let m = Mx4d::trans(0.8, 0.8, 0.);
-    // let t = m * x * y * s;
-    let t = m;
-    // let t = Mx4d::identity();
-    // let t = Mx4t::<f64>::default();
 
     let md = Module::new(CWD.clone() + "/res/obj/african_head.obj").unwrap();
     let mut ttv = image::open(CWD.clone() + "/res/img/african_head_diffuse.png").unwrap().to_rgba8();
@@ -139,40 +129,47 @@ fn main() -> Result<(), Box<dyn Error>>{
     let (ttvx, ttvy) = (ttv.width() as f64, ttv.height() as f64);
     ttv.revs();
 
+    let start = SystemTime::now();
 
+    let mut m = vec![
+        Mx4d::proj(5.1),
+        Mx4d::rot(XAXIS, PI/4.),
+        Mx4d::rot(YAXIS, -PI/8.),
+        Mx4d::rot(ZAXIS, PI/4.),
+        // Mx4d::scale(0.6, 0.6 ,0.6),
+        Mx4d::trans(0., 0., 0.),
+    ];
+    let mut t = Mx4d::identity();
+    m.iter().for_each(|x| t = t * *x);
+    // let t = Mx4d::identity();
 
-    let light_dir = V3d {x: 0., y: 0., z:-1.};
+    let light_dir = V3d {x: 1., y: 1., z: 1.};
     let transV = md.v.iter().map(|v| t * v).collect::<Vec<V4d>>();
-
-    for (i, j) in zip(&transV, &md.v) {
-        let (ix, iy, iz, iw) = (i.x, i.y, i.z, i.w);
-        let (jx, jy, jz, jw) = (j.x, j.y, j.z, j.w);
-            println!("{ix:.4}:{iy:.4}:{iz:.4}:{iw} - - {jx:.4}:{jy:.4}:{jz:.4}:{jw}");
-    }
-
-    let st =
 
     for f in md.f {
         // let (v0, v1, v2) = (md.v[f[0]-1], md.v[f[3]-1], md.v[f[6]-1]);
-        let (v0, v1, v2) = (&transV[f[0]-1], &transV[f[3]-1], &transV[f[6]-1]);
+        let (v0, v1, v2) = (transV[f[0]-1], transV[f[3]-1], transV[f[6]-1]);
         let vt012 = [&md.vt[f[1]-1], &md.vt[f[4]-1], &md.vt[f[7]-1]].map(|x| V3i{x: (x.x*ttvx) as i32, y: (x.y*ttvy) as i32, z: 0});
-        // let intensity = light_dir.dot(&as_v3d(v0 - v2).cross(&as_v3d(v1 - v2)).normalize().scale(-1.));
-        // let intensity = light_dir.dot(&V3d::new(1.,1.,1.,));
-
-        // let l = (intensity * 255f64) as u8;
-        let l = 23u8;
-        // if intensity > 0f64 {
+        let intensity = light_dir.dot((v0 - v2).v3t().cross((v1 - v2).v3t()).normalize().scale(-1.));
+        let intensity2 = light_dir.nv3().dot(&(v0 - v2).v3t().nv3().cross(&(v1 - v2).v3t().nv3()).normalize().scale(-1.));
+        //
+        // let a = (V3t {x:1.,y:2.,z:3.}).normalize();
+        //
+        let l = (intensity * 255f64) as u8;
+        // let l = 9u8;
+        if intensity2 > 0f64 {
             // triangle([p3i(&(t *v0)), p3i(&(t *v1)), p3i(&(t *v2))], vt012, &mut zbuf, &mut img, &ttv, Rgba([l,l,l,255]));
             triangle([p3i(&v0), p3i(&v1), p3i(&v2)], vt012, &mut zbuf, &mut img, &ttv, Rgba([l,l,l,255]));
-        // }
+        }
         // else {
         //     triangle([p3i(&v0), p3i(&v1), p3i(&v2)], vt012, &mut zbuf, &mut img2, &ttv, Rgba([l,l,l,255]));
         // }
     }
+    let diff = SystemTime::now().duration_since(start).unwrap();
+    println!("{:?}", diff.as_nanos());
 
-    img.revs();
     img.save(CWD.clone() + "/res/img/a.png").unwrap();
-    img2.revs();
-    img2.save(CWD.clone() + "/res/img/a2.png").unwrap();
+    // img2.revs();
+    // img2.save(CWD.clone() + "/res/img/a2.png").unwrap();
     Ok(())
 }
