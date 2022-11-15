@@ -2,16 +2,17 @@ use std::error::Error;
 use std::fmt::Debug;
 use std::fs;
 use std::str::{FromStr, SplitWhitespace};
-use nalgebra::Vector3;
+use wasm_bindgen::prelude::wasm_bindgen;
 
-use crate::define::*;
 use crate::matrix::*;
 
+#[wasm_bindgen]
+#[derive(Debug, Clone)]
 pub struct Module {
-    pub v: Vec<V4d>,
-    pub f: Vec<Vec<usize>>,
-    pub vt: Vec<V4d>,
-    pub vn: Vec<V4d>
+    v: Vec<V4d>,
+    f: Vec<Vec<usize>>,
+    vt: Vec<V4d>,
+    vn: Vec<V4d>
 }
 
 fn pnext<T: Debug + FromStr>(p: Option<&str>) -> T where <T as FromStr>::Err: Debug  {
@@ -19,15 +20,13 @@ fn pnext<T: Debug + FromStr>(p: Option<&str>) -> T where <T as FromStr>::Err: De
 }
 
 impl Module {
-    pub fn new(fpath: String) -> Result<Module, Box<dyn Error>> {
+    pub fn new(obj_str: String) -> Module {
 
-        let d = fs::read_to_string(fpath)?;
-
-        let mut v: Vec<V4d> = Vec::with_capacity(1258);
-        let mut f: Vec<Vec<usize>> = Vec::with_capacity(2492);
-        let mut vt: Vec<V4d> = Vec::with_capacity(1339);
-        let mut vn: Vec<V4d> = Vec::with_capacity(1258);
-        for p in d.split("\n") {
+        let mut v: Vec<V4d> = vec![];
+        let mut f: Vec<Vec<usize>> = vec![];
+        let mut vt: Vec<V4d> = vec![];
+        let mut vn: Vec<V4d> = vec![];
+        for p in obj_str.split("\n") {
             let mut p = p.split_whitespace();
             match p.next().unwrap_or(" ") {
                 "#" => {println!("{}", p.collect::<String>())}
@@ -39,6 +38,22 @@ impl Module {
                 _ => {}
             };
         }
-        Ok(Module { v, f, vt, vn })
+        Module { v, f, vt, vn }
+    }
+
+    pub fn v(&self) -> &Vec<V4d> {
+        &self.v
+    }
+
+    pub fn f(&self) -> &Vec<Vec<usize>> {
+        &self.f
+    }
+
+    pub fn vt(&self) -> &Vec<V4d> {
+        &self.vt
+    }
+
+    pub fn vn(&self) -> &Vec<V4d> {
+        &self.vn
     }
 }

@@ -2,7 +2,6 @@
 use std::default::Default;
 use std::iter::Product;
 use std::ops::{Add, Div, Mul, Sub};
-use crate::define::*;
 
 use num_traits::{real::Real, Pow};
 
@@ -72,7 +71,7 @@ impl<T: Real + Copy> V3t<T> {
     }
 
     pub fn dot(&self, rhs: V3t<T>) -> T {
-        self.x * rhs.x + self.y * rhs.y + self.z + rhs.z
+        self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
     }
     pub fn norm(&self) -> T {
         let a = self.x*self.x + self.y*self.y + self.z*self.z;
@@ -86,10 +85,6 @@ impl<T: Real + Copy> V3t<T> {
 
     pub fn scale(&self, t: T) -> Self {
         V3t { x: self.x * t, y: self.y * t, z: self.z * t}
-    }
-
-    pub fn nv3(&self) -> nalgebra::Vector3<T> {
-        nalgebra::Vector3::new(self.x, self.y, self.z)
     }
 }
 
@@ -213,24 +208,24 @@ impl<T: Real + Copy> Mx4t<T> {
         Mx4d { m11: 1., m22: 1., m33: 1., m44: 1., ..Default::default() }
     }
 
-    pub fn scale(x: f64, y: f64, z: f64) -> Mx4d {
+    pub fn scale([x, y, z]: [f64;3]) -> Mx4d {
         Mx4d { m11: x, m22: y, m33: z, m44: 1., ..Default::default() }
     }
 
-    pub fn proj(z: f64) -> Mx4d {
-        Mx4d { m11: 1., m22: -1., m33: 1., m44: 1., m43: -1./z, ..Default::default() }
+    pub fn proj([x, y, z]: [f64;3]) -> Mx4d {
+        Mx4d { m11: 1., m22: 1., m33: 1., m44: 1., m43: 1./z, ..Default::default() }
     }
 
-    pub fn rot(axis: i32, a: f64) -> Mx4d {
-        match axis {
-            XAXIS => { Mx4d { m11: a.cos(), m12: -a.sin(), m21: a.sin(), m22: a.cos(), m33: 1., m44: 1., ..Default::default() } }
-            YAXIS => { Mx4d { m11: a.cos(), m13: -a.sin(), m31: a.sin(), m33: a.cos(), m22: 1., m44: 1., ..Default::default() } }
-            ZAXIS => { Mx4d { m22: a.cos(), m23: -a.sin(), m32: a.sin(), m33: a.cos(), m11: 1., m44: 1., ..Default::default() } }
+    pub fn rot([x, y, z]: [f64;3]) -> Mx4d {
+        match ((x!=0.), (y!=0.), (z!=0.)) {
+            (true, _, _) => { Mx4d { m11: x.cos(), m12: -x.sin(), m21: x.sin(), m22: x.cos(), m33: 1., m44: 1., ..Default::default() } }
+            (_, true, _) => { Mx4d { m11: y.cos(), m13: -y.sin(), m31: y.sin(), m33: y.cos(), m22: 1., m44: 1., ..Default::default() } }
+            (_, _, true) => { Mx4d { m22: z.cos(), m23: -z.sin(), m32: z.sin(), m33: z.cos(), m11: 1., m44: 1., ..Default::default() } }
             _ =>     {panic!("meow")}
         }
     }
 
-    pub fn trans(x: f64, y: f64, z: f64) -> Mx4d {
+    pub fn trans([x, y, z]: [f64;3]) -> Mx4d {
         Mx4d {
             m11: 1., m22: 1., m33: 1., m44: 1.,
             m14: x, m24: y, m34: z,
